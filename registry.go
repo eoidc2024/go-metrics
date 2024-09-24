@@ -78,6 +78,24 @@ func (r *StandardRegistry) Get(name string) interface{} {
 	return r.metrics[name]
 }
 
+func free(i interface{}) {
+	if UseNilMetrics {
+		return
+	}
+	switch i.(type) {
+	case Meter:
+		v := i.(Meter)
+		v.Free()
+		i = nil
+	case Timer:
+		v := i.(Timer)
+		v.Free()
+		i = nil
+	default:
+		i = nil
+	}
+}
+
 // Gets an existing metric or creates and registers a new one. Threadsafe
 // alternative to calling Get and Register on failure.
 // The interface can be the metric to register if not found in registry,
@@ -88,6 +106,7 @@ func (r *StandardRegistry) GetOrRegister(name string, i interface{}) interface{}
 	metric, ok := r.metrics[name]
 	r.mutex.RUnlock()
 	if ok {
+		free(i)
 		return metric
 	}
 
@@ -95,6 +114,7 @@ func (r *StandardRegistry) GetOrRegister(name string, i interface{}) interface{}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	if metric, ok := r.metrics[name]; ok {
+		free(i)
 		return metric
 	}
 	if v := reflect.ValueOf(i); v.Kind() == reflect.Func {
