@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"reflect"
 	"sync"
 	"time"
 )
@@ -25,6 +26,7 @@ type Timer interface {
 	Update(time.Duration)
 	UpdateSince(time.Time)
 	Variance() float64
+	Free()
 }
 
 // GetOrRegisterTimer returns an existing Timer or constructs and registers a
@@ -34,6 +36,11 @@ type Timer interface {
 func GetOrRegisterTimer(name string, r Registry) Timer {
 	if nil == r {
 		r = DefaultRegistry
+	}
+	if metric, ok := r.Get(name).(Timer); ok {
+		if metric != (Timer)(nil) && !reflect.ValueOf(metric).IsZero() {
+			return metric
+		}
 	}
 	return r.GetOrRegister(name, NewTimer).(Timer)
 }
@@ -137,6 +144,8 @@ func (NilTimer) UpdateSince(time.Time) {}
 // Variance is a no-op.
 func (NilTimer) Variance() float64 { return 0.0 }
 
+func (NilTimer) Free() {}
+
 // StandardTimer is the standard implementation of a Timer and uses a Histogram
 // and Meter.
 type StandardTimer struct {
@@ -213,7 +222,14 @@ func (t *StandardTimer) StdDev() float64 {
 
 // Stop stops the meter.
 func (t *StandardTimer) Stop() {
+	t.Free()
 	t.meter.Stop()
+}
+
+func (t *StandardTimer) Free() {
+	t.histogram = nil
+	t.meter.Free()
+	t = nil
 }
 
 // Sum returns the sum in the sample.
@@ -308,6 +324,8 @@ func (t *TimerSnapshot) Stop() {}
 
 // Sum returns the sum at the time the snapshot was taken.
 func (t *TimerSnapshot) Sum() int64 { return t.histogram.Sum() }
+
+func (t *TimerSnapshot) Free() {}
 
 // Time panics.
 func (*TimerSnapshot) Time(func()) {
