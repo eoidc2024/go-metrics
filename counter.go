@@ -1,6 +1,9 @@
 package metrics
 
-import "sync/atomic"
+import (
+	"reflect"
+	"sync/atomic"
+)
 
 // Counters hold an int64 value that can be incremented and decremented.
 type Counter interface {
@@ -16,6 +19,11 @@ type Counter interface {
 func GetOrRegisterCounter(name string, r Registry) Counter {
 	if nil == r {
 		r = DefaultRegistry
+	}
+	if metric, ok := r.Get(name).(Counter); ok {
+		if metric != (Counter)(nil) && !reflect.ValueOf(metric).IsZero() {
+			return metric
+		}
 	}
 	return r.GetOrRegister(name, NewCounter).(Counter)
 }

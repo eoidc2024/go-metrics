@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"math"
+	"reflect"
 	"sync/atomic"
 )
 
@@ -17,6 +18,11 @@ type GaugeFloat64 interface {
 func GetOrRegisterGaugeFloat64(name string, r Registry) GaugeFloat64 {
 	if nil == r {
 		r = DefaultRegistry
+	}
+	if metric, ok := r.Get(name).(GaugeFloat64); ok {
+		if metric != (GaugeFloat64)(nil) && !reflect.ValueOf(metric).IsZero() {
+			return metric
+		}
 	}
 	return r.GetOrRegister(name, NewGaugeFloat64()).(GaugeFloat64)
 }

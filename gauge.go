@@ -1,6 +1,9 @@
 package metrics
 
-import "sync/atomic"
+import (
+	"reflect"
+	"sync/atomic"
+)
 
 // Gauges hold an int64 value that can be set arbitrarily.
 type Gauge interface {
@@ -14,6 +17,11 @@ type Gauge interface {
 func GetOrRegisterGauge(name string, r Registry) Gauge {
 	if nil == r {
 		r = DefaultRegistry
+	}
+	if metric, ok := r.Get(name).(Gauge); ok {
+		if metric != (Gauge)(nil) && !reflect.ValueOf(metric).IsZero() {
+			return metric
+		}
 	}
 	return r.GetOrRegister(name, NewGauge).(Gauge)
 }

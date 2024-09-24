@@ -1,5 +1,7 @@
 package metrics
 
+import "reflect"
+
 // Histograms calculate distribution statistics from a series of int64 values.
 type Histogram interface {
 	Clear()
@@ -22,6 +24,11 @@ type Histogram interface {
 func GetOrRegisterHistogram(name string, r Registry, s Sample) Histogram {
 	if nil == r {
 		r = DefaultRegistry
+	}
+	if metric, ok := r.Get(name).(Histogram); ok {
+		if metric != (Histogram)(nil) && !reflect.ValueOf(metric).IsZero() {
+			return metric
+		}
 	}
 	return r.GetOrRegister(name, func() Histogram { return NewHistogram(s) }).(Histogram)
 }
